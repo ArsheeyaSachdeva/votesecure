@@ -13,9 +13,16 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import firebase_admin
 from firebase_admin import credentials, firestore
+from flask import send_file
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
+
+@app.route("/app")
+def frontend():
+    return send_file("index.html")
+
+
 
 @app.after_request
 def after_request(response):
