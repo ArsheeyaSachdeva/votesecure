@@ -124,7 +124,8 @@ def send_otp_email(to_email, otp, name):
           <p style="color:#7a7a8c;font-size:11px;text-align:center;">If you didn't register on VoteSecure, ignore this email.</p>
         </div>
         """, "html"))
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as s:
+        with smtplib.SMTP("smtp.gmail.com", 587) as s:
+            s.starttls()
             s.login(GMAIL_USER, GMAIL_APP_PASS)
             s.sendmail(GMAIL_USER, to_email, msg.as_string())
         print(f"[Email] OTP sent to {to_email}")
