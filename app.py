@@ -7,7 +7,9 @@ Config   : Environment variables (Railway dashboard / .env file)
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import hashlib, secrets, re, smtplib, os, json
+import hashlib, secrets, re, os, json
+import sendgrid
+from sendgrid.helpers.mail import Mail
 from datetime import datetime, timedelta
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -175,11 +177,40 @@ def register():
         "last_otp_sent": now, "is_verified": False, "has_voted": False, "created_at": now,
     })
 
-    sent = send_otp_email(email, otp, name)
-    if sent:
-        return jsonify({"message": f"OTP sent to {email}"})
-    return jsonify({"message": "Registered! (Email not configured — use OTP below)", "debug_otp": otp})
-
+    def send_otp_email(to_email, otp, name):
+    api_key = os.environ.get("SENDGRID_API_KEY", "")
+    if not api_key:
+        print("[Email] SendGrid not configured")
+        return False
+    try:
+        sg = sendgrid.SendGridAPIClient(api_key=api_key)
+        html = f"""
+        <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;background:#f7f5f0;border-radius:16px;">
+          <div style="text-align:center;margin-bottom:24px;">
+            <span style="font-size:40px;">🗳️</span>
+            <h2 style="font-family:Georgia,serif;color:#0d0d0f;margin:8px 0 4px;">VoteSecure</h2>
+            <p style="color:#7a7a8c;font-size:13px;margin:0;">India's Secure Digital Ballot</p>
+          </div>
+          <p style="color:#3a3a45;font-size:15px;">Hi <strong>{name}</strong>,</p>
+          <p style="color:#3a3a45;font-size:14px;">Your OTP to verify your email is:</p>
+          <div style="background:#0d0d0f;color:white;text-align:center;padding:24px;border-radius:12px;margin:20px 0;">
+            <span style="font-family:monospace;font-size:40px;font-weight:bold;letter-spacing:12px;">{otp}</span>
+          </div>
+          <p style="color:#7a7a8c;font-size:12px;">⏱ Expires in 10 minutes. 🔒 Do not share with anyone.</p>
+        </div>
+        """
+        message = Mail(
+            from_email=os.environ.get("GMAIL_USER", "noreply@votesecure.com"),
+            to_emails=to_email,
+            subject=f"VoteSecure — Your OTP is {otp}",
+            html_content=html
+        )
+        sg.send(message)
+        print(f"[Email] OTP sent to {to_email}")
+        return True
+    except Exception as e:
+        print(f"[Email Error] {e}")
+        return False
 
 @app.route("/resend-otp", methods=["POST"])
 def resend_otp():
